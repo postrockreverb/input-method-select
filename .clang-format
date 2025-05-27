@@ -1,0 +1,17 @@
+# .clang-format
+
+BasedOnStyle: LLVM
+ColumnLimit: 120
+
+# Force curly braces on all control statements (if, for, while, etc.)
+AlwaysBreakBeforeMultilineStrings: false
+
+# Force braces even for single-line blocks
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline  # Optional: allows inline short functions
+
+# Additional style preferences (optional)
+IndentWidth: 2
+UseTab: Never
