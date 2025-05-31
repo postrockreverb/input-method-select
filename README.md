@@ -40,8 +40,8 @@ static NSArray<NSString *> *const kCandidateInputSources = @[
 
 ## When Does Window Focus Refresh?
 
-Window focus is refreshed only when switching from an input method listed in kCandidateInputSources.
-This works around a macOS bug where such input methods (with candidate boxes) may not deactivate properly using system API calls alone.
+Window focus is refreshed only when switching to or from an input method listed in kCandidateInputSources.
+This works around a macOS bug where such input methods (with candidate boxes) may not switch properly using system API calls alone.
 The tool creates and focuses a temporary window to refresh system focus.
 Input methods that don’t use candidate boxes do not trigger a focus refresh.
 

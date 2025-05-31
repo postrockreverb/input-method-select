@@ -47,17 +47,20 @@ BOOL selectInputSourceWithID(NSString *inputSourceID) {
 
 void refreshWindowFocus(void) {
   dispatch_async(dispatch_get_main_queue(), ^{
+    NSApplication *app = [NSApplication sharedApplication];
+    [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
+
     NSWindow *window = [[NSWindow alloc] initWithContentRect:NSZeroRect
                                                    styleMask:NSWindowStyleMaskBorderless
                                                      backing:NSBackingStoreBuffered
                                                        defer:NO];
-    [NSApp activateIgnoringOtherApps:YES];
+    [window orderFrontRegardless];
+    [app activateIgnoringOtherApps:YES];
+    [window close];
     [NSApp terminate:nil];
   });
 
-  [NSApplication sharedApplication];
-  [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-  [NSApp run];
+  [[NSApplication sharedApplication] run];
 }
 
 int main(int argc, const char *argv[]) {
@@ -80,7 +83,8 @@ int main(int argc, const char *argv[]) {
       return 1;
     }
 
-    BOOL shouldRefreshFocus = [kCandidateInputSources containsObject:currentInputSourceID];
+    BOOL shouldRefreshFocus = [kCandidateInputSources containsObject:currentInputSourceID] ||
+                              [kCandidateInputSources containsObject:targetInputSourceID];
     if (shouldRefreshFocus) {
       refreshWindowFocus();
     }
