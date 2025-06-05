@@ -1,11 +1,14 @@
 #import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
+#include <CoreFoundation/CFArray.h>
 #import <Foundation/Foundation.h>
 
-static NSArray<NSString *> *const kCandidateInputSources = @[
-  // candidate boxes input methods here
-  @"com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese"
-];
+#define kTempInputSource @"com.apple.keylayout.ABC"
+
+#define kABCInputSources                                                                                               \
+  @[ /* abc input methods here */                                                                                      \
+     @"com.apple.keylayout.ABC"                                                                                        \
+  ]
 
 NSString *getCurrentInputSourceID(void) {
   TISInputSourceRef currentSource = TISCopyCurrentKeyboardInputSource();
@@ -13,60 +16,73 @@ NSString *getCurrentInputSourceID(void) {
     return nil;
   }
 
-  CFStringRef currentID = TISGetInputSourceProperty(currentSource, kTISPropertyInputSourceID);
-  NSString *result = (NSString *)CFStringCreateCopy(NULL, currentID);
+  NSString *result = (__bridge NSString *)TISGetInputSourceProperty(currentSource, kTISPropertyInputSourceID);
+
   CFRelease(currentSource);
   return result;
 }
 
-BOOL selectInputSourceWithID(NSString *inputSourceID) {
-  CFStringRef targetID = (__bridge CFStringRef)inputSourceID;
-  const void *keys[] = {kTISPropertyInputSourceID};
-  const void *values[] = {targetID};
-  CFDictionaryRef properties = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
-                                                  &kCFTypeDictionaryValueCallBacks);
+BOOL selectInputSource(NSString *inputSourceID) {
+  NSDictionary *filter = @{
+    (__bridge NSString *)kTISPropertyInputSourceID : inputSourceID,
+    (__bridge NSString *)kTISPropertyInputSourceIsEnabled : @YES
+  };
 
-  CFArrayRef sources = TISCreateInputSourceList(properties, false);
-  if (CFArrayGetCount(sources) == 0) {
-    CFRelease(properties);
-    CFRelease(sources);
+  CFArrayRef sourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
+  if (!sourceList || CFArrayGetCount(sourceList) == 0) {
     return NO;
   }
 
-  TISInputSourceRef newSource = (TISInputSourceRef)CFArrayGetValueAtIndex(sources, 0);
-  OSStatus status = TISSelectInputSource(newSource);
-  CFRelease(properties);
-  CFRelease(sources);
+  TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(sourceList, 0);
+  OSStatus err = TISSelectInputSource(source);
+  if (err != noErr) {
+    return NO;
+  }
 
-  if (status != noErr) {
+  CFRelease(sourceList);
+  return YES;
+}
+
+BOOL selectInputSourceSafe(NSString *inputSourceID, NSString *inputSourceTempID) {
+  if (!selectInputSource(inputSourceID)) {
+    return NO;
+  }
+
+  if (!selectInputSource(inputSourceTempID)) {
+    return NO;
+  }
+
+  if (!selectInputSource(inputSourceID)) {
     return NO;
   }
 
   return YES;
 }
 
-void refreshWindowFocus(void) {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    NSApplication *app = [NSApplication sharedApplication];
-    [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
-
-    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSZeroRect
-                                                   styleMask:NSWindowStyleMaskBorderless
-                                                     backing:NSBackingStoreBuffered
-                                                       defer:NO];
-    [window orderFrontRegardless];
-    [app activateIgnoringOtherApps:YES];
-    [window close];
-    [NSApp terminate:nil];
-  });
-
-  [[NSApplication sharedApplication] run];
+CFArrayRef getEnabledInputSources(void) {
+  NSDictionary *filter = @{
+    (__bridge NSString *)kTISPropertyInputSourceIsEnabled : @YES,
+    (__bridge NSString *)kTISPropertyInputSourceCategory : (__bridge NSString *)kTISCategoryKeyboardInputSource
+  };
+  return TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
 }
 
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     if (argc != 2) {
-      return 1;
+      printf("Usage: %s <input-source-id>\n", argv[0]);
+      printf("If no argument is given, prints the list of enabled input sources.\n");
+      printf("Enabled input sources:\n");
+
+      CFArrayRef sourceList = getEnabledInputSources();
+      for (CFIndex i = 0; i < CFArrayGetCount(sourceList); ++i) {
+        TISInputSourceRef source = (TISInputSourceRef)CFArrayGetValueAtIndex(sourceList, i);
+        CFStringRef sid = TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
+        printf("- %s\n", CFStringGetCStringPtr(sid, kCFStringEncodingUTF8));
+      }
+
+      CFRelease(sourceList);
+      return 0;
     }
 
     NSString *currentInputSourceID = getCurrentInputSourceID();
@@ -79,14 +95,11 @@ int main(int argc, const char *argv[]) {
       return 0;
     }
 
-    if (!selectInputSourceWithID(targetInputSourceID)) {
+    BOOL res = [kABCInputSources containsObject:currentInputSourceID]
+                   ? selectInputSource(targetInputSourceID)
+                   : selectInputSourceSafe(targetInputSourceID, kTempInputSource);
+    if (!res) {
       return 1;
-    }
-
-    BOOL shouldRefreshFocus = [kCandidateInputSources containsObject:currentInputSourceID] ||
-                              [kCandidateInputSources containsObject:targetInputSourceID];
-    if (shouldRefreshFocus) {
-      refreshWindowFocus();
     }
   }
 
