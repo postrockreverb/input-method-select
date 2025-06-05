@@ -1,6 +1,8 @@
 # Input Method Select
 
-A minimal macOS CLI utility to **switch keyboard input methods** programmatically, with optional **window focus refresh** for input methods that use candidate boxes.
+A minimal macOS CLI utility to switch keyboard input methods programmatically — fast and reliable for scripting, automation, and hotkeys.
+
+Works around macOS bug with "candidate box" input methods (e.g., Japanese IME).
 
 ## Install
 
@@ -27,23 +29,17 @@ This will create:
 - dist-arm64/input-method-select (for Apple Silicon)
 - dist-x86_64/input-method-select (for Intel Macs)
 
-## Customize Candidate Input Methods
+## Candidate input methods bug workaround
 
-If your input method requires a focus refresh (e.g., it uses a candidate window), add its input_source_id to the kCandidateInputSources array in input-method-select.m:
+If your input method displays a candidate window (like many East Asian input methods), macOS sometimes fails to fully switch using only the system API.
 
-```objc
-static NSArray<NSString *> *const kCandidateInputSources = @[
-  // candidate boxes input methods here
-  @"com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese"
-];
-```
+To fix this, whenever you’re switching from ABC input method, the following sequence will be applied:
 
-## When Does Window Focus Refresh?
+1. Switch to your target input method
+2. Switch back to ABC
+3. Switch again to the target input method
 
-Window focus is refreshed only when switching to or from an input method listed in kCandidateInputSources.
-This works around a macOS bug where such input methods (with candidate boxes) may not switch properly using system API calls alone.
-The tool creates and focuses a temporary window to refresh system focus.
-Input methods that don’t use candidate boxes do not trigger a focus refresh.
+If you are NOT switching from ABC, the normal switch is sufficient.
 
 ## License
 
