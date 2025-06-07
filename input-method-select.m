@@ -4,6 +4,7 @@
 #import <Foundation/Foundation.h>
 
 #define kTempInputSource @"com.apple.keylayout.ABC"
+#define kSafeSwitchDelay 0.05
 
 #define kABCInputSources                                                                                               \
   @[ /* abc input methods here */                                                                                      \
@@ -48,10 +49,12 @@ BOOL selectInputSourceSafe(NSString *inputSourceID, NSString *inputSourceTempID)
     return NO;
   }
 
+  [NSThread sleepForTimeInterval:kSafeSwitchDelay];
   if (!selectInputSource(inputSourceTempID)) {
     return NO;
   }
 
+  [NSThread sleepForTimeInterval:kSafeSwitchDelay];
   if (!selectInputSource(inputSourceID)) {
     return NO;
   }
